@@ -5,7 +5,6 @@ import { engine } from 'express-handlebars';
 import productRoutes from './routes/productRoutes.js';
 import { PORT }  from './config/config.js';
 import fs from 'fs'
-import https from 'https'
 
 const app = express();
 
@@ -34,9 +33,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/', productRoutes);
 
 // Servidor
-// app.listen(PORT, () => {
-//   console.log(`Servidor corriendo en el puerto ${PORT}`);
-// });
-https.createServer(sslOptions, app).listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
