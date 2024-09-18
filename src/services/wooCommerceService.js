@@ -35,6 +35,7 @@ export const getAllWooCommerceProducts = async () => {
                 per_page: 100,
                 page
             });
+            console.log(response);
             products = products.concat(response.data);
             totalPages = response.headers['x-wp-totalpages'];
             page++;
