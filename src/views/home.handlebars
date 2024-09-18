@@ -1,0 +1,88 @@
+<h1>Productos:</h1>
+
+
+<div class="d-flex gap-1">  
+    <a class="btn btn-primary" data-bs-toggle="collapse" href="#addProduct" title="Agregar Nuevo Producto">Agregar Nuevo Producto</a>
+    <form action="/woocommerce/delete-all" method="POST">
+        <button type="submit" class="btn btn-danger">Eliminar Todos los Productos de WooCommerce</button>
+    </form>
+    <form action="/woocommerce/add-all" method="POST">
+        <button type="submit" class="btn btn-success">Agregar Todos los Productos de WooCommerce</button>
+    </form>
+</div>
+
+
+<div class="collapse mt-2" id="addProduct">
+  <div class="card card-body">
+
+    <form action="/new" method="POST" enctype="multipart/form-data">
+        <label class="form-label">Nombre:</label>
+        <input class="form-control" name="name" type="text" required>
+        
+        <label class="form-label mt-2">Precio:</label>
+        <input type="number" class="form-control" name="price" required>
+        
+        <label class="form-label mt-2">Stock:</label>
+        <input type="number" name="stock" class="form-control" required>
+        
+        <label class="form-label mt-2">Imagen:</label>
+        <input type="file" name="image" accept="image/*" class="form-control">
+
+        <button type="submit" class="btn btn-primary mt-2">Agregar Producto</button>
+    </form>
+
+  </div>
+</div>
+
+<div class="d-flex flex-wrap gap-3 my-4">
+    {{#each products}}
+    <div class="card" style="width: 19.5rem;">
+        <img src="/product-images/{{this.image_name}}" class="card-img-top" alt="{{this.name}}">
+        
+        <div class="card-body product-info">
+            <h5 class="card-title">{{this.name}}</h5>
+            <p class="card-text">${{this.price}} (Stock: {{this.stock}})</p>
+            <div class="d-flex gap-1">
+                <form action="/delete/{{this.id}}" method="POST">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+                <button class="btn btn-primary btn-edit" data-id="{{this.id}}">Editar</button>
+            </div>
+        </div>
+        
+        <div class="card-body edit-form" style="display: none;">
+            <form action="/edit/{{this.id}}" method="POST" enctype="multipart/form-data">
+                <label class="form-label">Nombre:</label>
+                <input class="form-control" name="name" type="text" value="{{this.name}}" required>
+                
+                <label class="form-label mt-2">Precio:</label>
+                <input type="number" class="form-control" name="price" value="{{this.price}}" min="0" required>
+                
+                <label class="form-label mt-2">Stock:</label>
+                <input type="number" name="stock" class="form-control" value="{{this.stock}}" min="0" required>
+                
+                <label class="form-label mt-2">Imagen:</label>
+                <input type="file" name="image" accept="image/*" class="form-control">
+                
+                <button type="submit" class="btn btn-primary mt-2">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+    {{/each}}
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const editButtons = document.querySelectorAll('.btn-edit');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const card = button.closest('.card');
+                const productInfo = card.querySelector('.product-info');
+                const editForm = card.querySelector('.edit-form');
+                productInfo.style.display = 'none';
+                editForm.style.display = 'block';
+            });
+        });
+    });
+</script>

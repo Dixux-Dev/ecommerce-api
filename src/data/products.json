@@ -1,0 +1,82 @@
+[
+  {
+    "sku": "1726448887828",
+    "name": "Producto 1",
+    "price": "30.87",
+    "stock_quantity": 37,
+    "image_name": "1726448887828.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887898",
+    "name": "Producto 2",
+    "price": "80.12",
+    "stock_quantity": 96,
+    "image_name": "1726448887898.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887901",
+    "name": "Producto 3",
+    "price": "34.65",
+    "stock_quantity": 57,
+    "image_name": "1726448887901.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887904",
+    "name": "Producto 4",
+    "price": "17.60",
+    "stock_quantity": 76,
+    "image_name": "1726448887904.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887907",
+    "name": "Producto 5",
+    "price": "38.55",
+    "stock_quantity": 39,
+    "image_name": "1726448887907.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887911",
+    "name": "Producto 6",
+    "price": "75.02",
+    "stock_quantity": 20,
+    "image_name": "1726448887911.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887914",
+    "name": "Producto 7",
+    "price": "93.33",
+    "stock_quantity": 58,
+    "image_name": "1726448887914.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887917",
+    "name": "Producto 8",
+    "price": "81.87",
+    "stock_quantity": 90,
+    "image_name": "1726448887917.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887919",
+    "name": "Producto 9",
+    "price": "52.07",
+    "stock_quantity": 42,
+    "image_name": "1726448887919.jpg",
+    "manage_stock": true
+  },
+  {
+    "sku": "1726448887922",
+    "name": "Producto 10",
+    "price": "30.17",
+    "stock_quantity": 65,
+    "image_name": "1726448887922.jpg",
+    "manage_stock": true
+  }
+]
