@@ -8,3 +8,8 @@ export const wooCommerceApi = {
     consumerSecret: process.env.WOOCOMMERCE_CONSUMER_SECRET,
     version: process.env.WOOCOMMERCE_VERSION
 };
+
+export const WordPressApi = {
+    user: process.env.WORDPRESS_USERNAME,
+    password: process.env.WORDPRESS_PASSWORD
+};

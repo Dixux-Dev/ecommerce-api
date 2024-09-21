@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import { engine } from 'express-handlebars';
 import productRoutes from './routes/productRoutes.js';
 import { PORT }  from './config/config.js';
-import fs from 'fs'
 
 const app = express();
 
@@ -12,10 +11,7 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const sslOptions = {
-  key: fs.readFileSync(path.join(__dirname, '../server.key')),
-  cert: fs.readFileSync(path.join(__dirname, '../server.cert'))
-};
+
 
 // Configuración de Handlebars
 app.engine('handlebars', engine({ defaultLayout: 'main' }));

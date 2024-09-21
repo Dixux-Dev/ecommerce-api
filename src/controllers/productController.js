@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { deleteAllWooCommerceProducts, addProductToWooCommerce, updateProductInWooCommerce, deleteProductFromWooCommerce, uploadAllProductsToWooCommerce, getAllWooCommerceProducts, uploadImageToWordPress } from '../services/wooCommerceService.js';
+import { deleteAllWooCommerceProducts, addProductToWooCommerce, updateProductInWooCommerce, deleteProductFromWooCommerce, uploadAllProductsToWooCommerce, getAllWooCommerceProducts } from '../services/wooCommerceService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,27 +31,21 @@ export const createProduct = async (req, res) => {
         sku: Date.now().toString(),
         name: req.body.name,
         price: req.body.price,
-        stock: req.body.stock,
+        stock_quantity: req.body.stock_quantity,
         image_name: req.file ? req.file.filename : null
     };
 
     try {
-        let imageUrl = null;
-
-        // Subir imagen a WordPress si hay imagen
-        if (newProduct.image_name) {
-            const imagePath = path.join(__dirname, '../public/product-images', newProduct.image_name);
-            imageUrl = await uploadImageToWordPress(imagePath, newProduct.image_name);
-        }
+        const imagePath = req.file ? path.join(__dirname, '../public/product-images', req.file.filename) : null;
 
         // Sincronizar con WooCommerce
         const response = await addProductToWooCommerce({
             name: newProduct.name,
             regular_price: newProduct.price.toString(),
-            stock_quantity: newProduct.stock,
+            stock_quantity: newProduct.stock_quantity,
             sku: newProduct.sku,
-            images: imageUrl ? [{ src: imageUrl }] : []  // Agregar imagen a WooCommerce
-        });
+            manage_stock: true,
+        }, imagePath);
 
         const products = getProducts();
         products.push({
@@ -74,19 +68,11 @@ export const updateProduct = async (req, res) => {
     const productIndex = products.findIndex(p => p.id == req.params.id);
 
     if (productIndex !== -1) {
-        let imageUrl = products[productIndex].image_name;  // Mantener imagen existente
-
-        // Subir nueva imagen si se ha proporcionado una
-        if (req.file) {
-            const imagePath = path.join(__dirname, '../public/product-images', req.file.filename);
-            imageUrl = await uploadImageToWordPress(imagePath, req.file.filename);
-        }
-
         products[productIndex] = {
             ...products[productIndex],
             name: req.body.name || products[productIndex].name,
             price: req.body.price || products[productIndex].price,
-            stock: req.body.stock || products[productIndex].stock,
+            stock_quantity: req.body.stock_quantity || products[productIndex].stock_quantity,
             image_name: req.file ? req.file.filename : products[productIndex].image_name,
             sku: req.body.sku || products[productIndex].sku,
             manage_stock: true
@@ -99,9 +85,9 @@ export const updateProduct = async (req, res) => {
             await updateProductInWooCommerce(products[productIndex].id, {
                 name: products[productIndex].name,
                 regular_price: products[productIndex].price.toString(),
-                stock_quantity: products[productIndex].stock,
+                stock_quantity: products[productIndex].stock_quantity,
                 manage_stock: true,
-                images: imageUrl ? [{ src: imageUrl }] : []
+                image_name: products[productIndex].image_name // Pasamos el nombre de la imagen si existe
             });
         } catch (error) {
             console.error('Error al actualizar producto en WooCommerce:', error.message);
@@ -178,6 +164,7 @@ export const addAllProductsToWooCommerce = async (req, res) => {
         let products = getProducts();
         const response = await uploadAllProductsToWooCommerce(products);
 
+        // console.log(response.data.create)
         // Agregar los id generados por WooCommerce        
         const wooCommerceIds = response.data.create.map(producto => {
             return {

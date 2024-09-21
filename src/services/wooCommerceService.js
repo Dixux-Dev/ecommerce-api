@@ -1,11 +1,16 @@
 import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api/index.mjs";
-import { wooCommerceApi } from '../config/config.js';
-
+import { wooCommerceApi, WordPressApi } from '../config/config.js';
 import axios from 'axios';
 import FormData from 'form-data';
 import { Agent } from 'https';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// revisar si esto es necesario
 const httpsAgent = new Agent({ rejectUnauthorized: false })
 
 const api = new WooCommerceRestApi({
@@ -28,16 +33,15 @@ export const getAllWooCommerceProducts = async () => {
     try {
         let products = [];
         let page = 1;
-        let totalPages;
+        let totalPages = 1;
 
         do {
             const response = await api.get('products', {
-                per_page: 100,
-                page
+                params: { per_page: 100, page } 
             });
-            console.log(response);
-            products = products.concat(response.data);
-            totalPages = response.headers['x-wp-totalpages'];
+
+            products = [...products, ...response.data]; 
+            totalPages = parseInt(response.headers['x-wp-totalpages'], 10) || 1;
             page++;
         } while (page <= totalPages);
 
@@ -48,23 +52,31 @@ export const getAllWooCommerceProducts = async () => {
     }
 };
 
-
 // Eliminar todos los productos de WooCommerce
 export const deleteAllWooCommerceProducts = async () => {
     try {
         const products = await getAllWooCommerceProducts();
-        console.log(products)
-        // Extrae los IDs de los productos
         const productIds = products.map(product => product.id);
 
         if (productIds.length === 0) {
             console.log('No hay productos para eliminar en WooCommerce.');
             return;
         }
-        // Elimina los productos en un solo paso
-        const response = await api.post('products/batch', {
+
+        // Eliminar imágenes de cada producto
+        await Promise.all(products.map(async (product) => {
+            if (product.images && product.images.length > 0) {
+                await Promise.all(product.images.map(async (image) => {
+                    await deleteImageFromWordPress(image.id); // Asumiendo que image.id es el ID de la imagen en WordPress
+                }));
+            }
+        }));
+
+        // Elimina los productos de WooCommerce
+        await api.post('products/batch', {
             delete: productIds
         });
+
         console.log('Productos eliminados de WooCommerce');
     } catch (error) {
         console.error('Error al eliminar productos de WooCommerce:', error.response?.data || error.message);
@@ -75,12 +87,21 @@ export const deleteAllWooCommerceProducts = async () => {
 export const uploadAllProductsToWooCommerce = async (products) => {
     try {
         const wooCommerceProducts = await Promise.all(products.map(async product => {
+            let imageUrl = null;
+
+            // Si el producto tiene una imagen asociada, la subimos a WordPress
+            if (product.image_name) {
+                const imagePath = path.join(__dirname, '../public/product-images', product.image_name);
+                imageUrl = await uploadImageToWordPress(imagePath);
+            }
+
             return {
                 name: product.name,
                 regular_price: product.price.toString(),
-                stock_quantity: product.stock,
-                manage_stock: product.manage_stock,
+                stock_quantity: product.stock_quantity,
+                manage_stock: true,
                 sku: product.sku,
+                images: imageUrl ? [{ src: imageUrl }] : [] // Añadir imagen si existe
             };
         }));
 
@@ -91,15 +112,26 @@ export const uploadAllProductsToWooCommerce = async (products) => {
 
         return response;
     } catch (error) {
-        console.error('Error al agregar productos de WooCommerce:', error.response?.data || error.message);
+        console.error('Error al agregar productos a WooCommerce:', error.response?.data || error.message);
         throw error;
     }
 };
 
 // Agregar un producto a WooCommerce
-export const addProductToWooCommerce = async (product) => {
+export const addProductToWooCommerce = async (product, imagePath = null) => {
     try {
-        const response = await api.post('products', product);
+        let imageUrl = null;
+
+        if (imagePath) {
+            // Subir la imagen y obtener su URL
+            imageUrl = await uploadImageToWordPress(imagePath);
+        }
+
+        const response = await api.post('products', {
+            ...product,
+            images: imageUrl ? [{ src: imageUrl }] : [] // Si hay una imagen, la añadimos
+        });
+
         return response.data;
     } catch (error) {
         console.error('Error al agregar producto a WooCommerce:', error.response?.data || error.message);
@@ -107,14 +139,29 @@ export const addProductToWooCommerce = async (product) => {
     }
 };
 
-
 // Actualizar un producto en WooCommerce
-export const updateProductInWooCommerce = async (id, product) => {
+export const updateProductInWooCommerce = async (productId, updatedProductData) => {
     try {
-        const response = await api.put(`products/${id}`, product);
+        let imageUrl = null;
+
+        // Verificar si hay una imagen para subir
+        if (updatedProductData.image_name) {
+            const imagePath = path.join(__dirname, '../public/product-images', updatedProductData.image_name);
+            imageUrl = await uploadImageToWordPress(imagePath); // Subir la imagen a WordPress
+        }
+
+        // Preparar los datos actualizados, incluyendo la imagen si existe
+        const updatedData = {
+            ...updatedProductData,
+            images: imageUrl ? [{ src: imageUrl }] : []  // Agregar la imagen si fue subida
+        };
+
+        // Usar WooCommerceRestApi para actualizar el producto
+        const response = await api.put(`products/${productId}`, updatedData);
+
         return response.data;
     } catch (error) {
-        console.error('Error al actualizar producto en WooCommerce:', error.response?.data || error.message);
+        console.error('Error actualizando el producto en WooCommerce:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -130,25 +177,42 @@ export const deleteProductFromWooCommerce = async (id) => {
     }
 };
 
-
 // Subir imagen a WordPress
-export const uploadImageToWordPress = async (imagePath, imageName) => {
+const uploadImageToWordPress = async (imagePath) => {
     try {
-        console.log(`imagePath: ${imagePath}`);
-        console.log(`imageName: ${imageName}`);
-        const data = new FormData();
-        data.append('file', fs.createReadStream(imagePath), imageName);
+        const form = new FormData();
+        form.append('file', fs.createReadStream(imagePath)); // Lee la imagen desde el sistema de archivos
 
-        const response = await axios.post(`${wooCommerceApi.url}/wp-json/wp/v2/media`, data, {
+        const response = await axios.post(`${wooCommerceApi.url}/wp-json/wp/v2/media`, form, {
             headers: {
-                'Content-Type': `multipart/form-data; boundary=${data._boundary}`,
-                'Authorization': `Basic ${Buffer.from(`${wooCommerceApi.consumerKey}:${wooCommerceApi.consumerSecret}`).toString('base64')}`
-            }
+                'Authorization': `Basic ${Buffer.from(`${WordPressApi.user}:${WordPressApi.password}`).toString('base64')}`,
+                ...form.getHeaders(),
+            },
+            httpsAgent,
+        });
+        
+        // Retorna el enlace de la imagen
+        return response.data.source_url;
+    } catch (error) {
+        console.error('Error al subir imagen a WordPress:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+export const deleteImageFromWordPress = async (imageId) => {
+    try {
+        const response = await axios.delete(`${wooCommerceApi.url}/wp-json/wp/v2/media/${imageId}`, {
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${WordPressApi.user}:${WordPressApi.password}`).toString('base64')}`,
+            },
+            params: { force: true },
+            httpsAgent,
         });
 
-        return response.data.source_url;  // URL de la imagen subida
+        console.log(`Imagen ${imageId} eliminada de WordPress.`);
+        return response.data;
     } catch (error) {
-        console.error('Error al subir imagen a WordPress:', error.message);
+        console.error('Error al eliminar imagen de WordPress:', error.response?.data || error.message);
         throw error;
     }
 };
